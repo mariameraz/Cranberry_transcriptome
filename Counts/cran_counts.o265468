@@ -1,0 +1,20 @@
+
++---------------------------------------------------------------------+
+|                        JOB INFORMATION                              |
++---------------------------------------------------------------------+
+|
+|  Date      : Wed Sep 15 16:21:32 CDT 2021
+|  Hostname  : node22
+|  Job ID    : 265468.mazorka
+|  Username  : mtorres
+|  Group     : mtorres
+|  Job Name  : cran_counts
+|  Session   : 6697
+|  Limits    : mem=30gb,neednodes=1:ppn=1,nodes=1:ppn=1,vmem=30gb,walltime=1015:39:00
+|  Resources : cput=00:25:16,energy_used=0,mem=137952kb,vmem=442532kb,walltime=00:27:01
+|  Queue     : default
+|  Exit code : 0
+|
+[---------------------------------------------------------------------]
+
+
