@@ -9,7 +9,7 @@ library(viridis)
 library(ggpubr)
 library(gridExtra)
 
-setwd("/home/alejandra/Documentos/Cranberry_transcriptomics/") #Set working directory
+setwd("./Cranberry_transcriptomics/") #Set working directory
 
 count_data <- read.table("Counts/counts.cranberry.txt", header = T) #Load counts table
 genetic_data <- count_data %>% dplyr::select(Geneid:Length) #Keep genetic information
@@ -342,6 +342,140 @@ hm <-  Heatmap(mat_scaled,
                row_names_gp = gpar(fontsize = 8),
                top_annotation = colAnn) 
 draw(hm)
+
+## GO terms:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+# Gene annotation (Uniprot ID)
+annotation <- read.table("Annotation/ids.txt") %>%
+  'colnames<-'(c("cran_id","uni_id"))
+
+head(annotation)
+
+#Getting GO annotation for the gene universe (all annotated genes with an Uniprot annotation)
+best_hits <-annotation %>%
+  separate(uni_id, into = c(
+    'sep','uniID', 'uniprot_ID'), sep = "\\|") %>%
+  dplyr::select(uniprot_ID)
+best_hits=as.data.frame(best_hits)
+
+GenesTotales<-gsub("_.*","",best_hits$uniprot_ID)
+listMarts(host="plants.ensembl.org")
+ensembl_plant <- useMart(host="https://plants.ensembl.org", 
+                         biomart="plants_mart", 
+                         port = 443,)
+
+# listDatasets(ensembl_plant)
+db= useMart('plants_mart',dataset='athaliana_eg_gene', host="http://plants.ensembl.org")
+go_ids= getBM(attributes=c('go_id', 'external_gene_name', 'namespace_1003'), filters='external_gene_name', values=GenesTotales,
+              mart=db, useCache = FALSE)
+
+# Build gene 2 GO annotation list; remove any candidate genes without GO annotation.
+gene_2_GO=unstack(go_ids[,c(1,2)])
+
+
+#Go analysis to Up and Down DEG for each constrast (C1_RvsV, C2_RvsV, C3_RvsV)
+go_analysis <- list()
+for (i in c("C1","C2","C3")) {
+  for (j in c("up","down")) {
+    
+    #Save ONLY significant results 
+    go_analysis[[paste(i,"up", sep="_")]] <- results[[paste(i,"RvsV", sep="_")]]$table %>% 
+      dplyr::filter(logFC > 1 & FDR < 0.05) 
+    
+    go_analysis[[paste(i,"down", sep="_")]] <- results[[paste(i,"RvsV", sep="_")]]$table %>% 
+      dplyr::filter(logFC < -1 & FDR < 0.05) 
+    
+    #Get Uniprot Ids for DEG
+    go_analysis[[paste(paste(i, "list", sep = "_"), j, sep = "_")]] <-
+      annotation %>% mutate(filt=ifelse(cran_id %in% 
+                                                   rownames(go_analysis[[paste(i, j, sep = "_")]]), "yes","no")) %>% 
+      filter(filt=="yes") %>%
+      mutate(uni_id=gsub(".*\\||_.*", "", uni_id )) %>% dplyr::select(uni_id)
+
+    keep <- go_analysis[[paste(paste(i, "list", sep = "_"), j, sep = "_")]]$uni_id %in% go_ids[,2]
+    keep <- which(keep==TRUE)
+    go_analysis[[paste(paste(i, "list", sep = "_"), j, sep = "_")]] <-
+      go_analysis[[paste(paste(i, "list", sep = "_"), j, sep = "_")]]$uni_id[keep]
+    # print(length(list[[paste(paste(i, "list", sep = "_"), j, sep = "_")]]))
+    
+    go_analysis[[paste(paste(i, "list", sep = "_"), j, sep = "_")]] <- 
+      factor(as.integer(GenesTotales %in% go_analysis[[paste(paste(i, "list", sep = "_"), j, sep = "_")]]))
+    names(go_analysis[[paste(paste(i, "list", sep = "_"), j, sep = "_")]])<- GenesTotales
+
+    go_analysis[[paste(paste(i, "GOdata", sep = "_"), j, sep = "_")]] <- new('topGOdata',
+                    ontology='BP', #character string specifying the ontology of interest (BP, MF or CC)
+                    allGenes = go_analysis[[paste(paste(i,"list", sep = "_"), j, sep = "_")]], #named vector of type numeric or factor. Contains the genes identifiers. The genes listed in this object define the gene universe.
+                    annot = annFUN.gene2GO, #this function is used when the annotation are provided as a gene-to-GOs mapping.
+                    gene2GO = gene_2_GO)
+    
+    go_analysis[[paste(paste(i,"GO_fisherW", sep = "_"), j, sep = "_")]] <-
+      runTest(go_analysis[[paste(paste(i, "GOdata", sep = "_"), j, sep = "_")]],
+              algorithm='weight01', statistic='fisher')
+    
+    go_analysis[[paste(paste(i,"GO", sep = "_"), j, sep = "_")]] <- 
+      usedGO(go_analysis[[paste(paste(i, "GOdata", sep = "_"), j, sep = "_")]])
+  
+    go_analysis[[paste(paste(i, "GO_res", sep = "_"), j, sep = "_")]] <-
+      GenTable(go_analysis[[paste(paste(i, "GOdata", sep = "_"), j, sep = "_")]],
+               weightFisher=go_analysis[[paste(paste(i,"GO_fisherW", sep = "_"), j, sep = "_")]],
+                       orderBy='weightFisher', 
+               topNodes=length(go_analysis[[paste(paste(i,"GO", sep = "_"), j, sep = "_")]])) 
+    
+    
+    #Top 25 of the most significant (padj > 0.05) enriched TopGO
+    go_analysis[[paste(paste(i, "GO_res_top", sep = "_"), j, sep = "_")]] <- 
+      go_analysis[[paste(paste(i, "GO_res", sep = "_"), j, sep = "_")]] %>%
+      dplyr::filter(!stringr::str_detect(Term, "biological")) %>%
+      dplyr::filter(as.numeric(weightFisher) < 0.05) %>%
+      arrange(as.numeric(weightFisher)) %>%
+      head(25) %>%
+      dplyr::rename(Genes=Significant, p.adj =weightFisher) %>%
+      dplyr::mutate(enrichment.factor = as.numeric(Genes)/as.numeric(Expected))
+    
+    # Preparing data for plotting it
+        temp <- nrow(go_analysis[[paste(paste(i, "GO_res_top", sep = "_"), j, sep = "_")]])
+        go_analysis[[paste(paste(i, "GO_res_top", sep = "_"), j, sep = "_")]] <- 
+          go_analysis[[paste(paste(i, "GO_res_top", sep = "_"), j, sep = "_")]] %>%
+          dplyr::mutate(group=rep(c(paste(paste(i,"RvsV", sep = "_"), j, sep = "_")), each=temp))
+        
+        go_analysis[[paste(i, "top", sep = "_")]] <-
+          rbind(go_analysis[[paste(paste(i, "GO_res_top", sep = "_"), "up", sep = "_")]],
+                go_analysis[[paste(paste(i, "GO_res_top", sep = "_"), "down", sep = "_")]])
+        
+        colnames(go_analysis[[paste(i, "top", sep = "_")]]) <-
+          c("GO.ID",
+            "Term",
+            "Annotated",
+            "Count",
+            "Expected",
+            "p.value",
+            "enrichment",
+            "group")
+        
+        go_analysis[[paste(i, "top", sep = "_")]]$Count <- as.integer(go_analysis[[paste(i, "top", sep = "_")]]$Count)
+        go_analysis[[paste(i, "top", sep = "_")]]<- go_analysis[[paste(i, "top", sep = "_")]] %>% drop_na()
+        
+        
+  }
+}
+
+# Plot data
+  ggplot(go_analysis$C3_top) + 
+  geom_point(aes(y=Term, x=group, color = as.numeric(p.value), size = Count)) +
+  theme_bw() + 
+  scale_color_gradientn(colors = magma(100)) +
+  theme(axis.text.x = element_text(angle = 65,vjust = 1.2, hjust = 1.2, size=8),
+        axis.text.y = element_text(hjust = 1, size=8),
+        plot.title=element_text(size=11,face = 2,hjust=0, lineheight = 1), 
+        plot.subtitle=element_text(size=9, face=1, hjust=0),
+        legend.title = element_text(color = "darkslategrey",size = 9, face = "bold"), 
+        plot.margin = unit(c(2, 2, 1,3.5), "cm")) +
+  labs(x = "", y = "", 
+       title="GO Enrichment analysis\n C1 RvsV",
+       subtitle ="Biological process") + 
+  labs(color="p.value", 
+       size= "Gene count")
+
 
 #Save session information
 sink("session.info.txt")
