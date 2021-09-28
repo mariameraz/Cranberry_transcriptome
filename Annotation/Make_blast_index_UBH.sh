@@ -7,5 +7,4 @@ cd $PBS_O_WORKDIR
 
 module load ncbi-blast+/2.6.0
 
-makeblastdb -in macrocarpon.proteins.fasta -dbtype prot
-
+makeblastdb -in uniprot_fasta_ubh.fasta -dbtype prot
