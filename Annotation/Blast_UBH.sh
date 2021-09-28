@@ -7,8 +7,10 @@ cd $PBS_O_WORKDIR
 
 module load ncbi-blast+/2.6.0
 
+IDX_PATH=/ABS_PATH_TO_IDX_FOLDER
+
 blastp -query ../uniprot.fasta\
- -db $PATH/macrocarpon.proteins.fasta -outfmt 7\
+ -db $IDX_PATH/macrocarpon.proteins.fasta -outfmt 7\
  -max_target_seqs 10 -evalue 1e-5 -out uniprot_vs_macro_UBH.tab #UBH:"Undirectional best hits".
  
 #Filter best uniprot hits IDs
