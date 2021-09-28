@@ -6,6 +6,8 @@ library(lemon)
 library(ggvenn)
 library(ComplexHeatmap)
 library(viridis)
+library(topGO)
+library(biomaRt)
 library(ggpubr)
 library(gridExtra)
 
