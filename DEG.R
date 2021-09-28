@@ -1,35 +1,13 @@
 # Load libraries 
-#library(dplyr)
-#library(tidyverse)
-#library(edgeR)
-#library(lemon)
-#library(ggvenn)
-#library(ComplexHeatmap)
-#library(viridis)
-#library(ggpubr)
-#library(gridExtra)
-
-CheckPackages <-
-  function(x){
-          for (i in length(x)) {
-            if (x[i] %in% installed.packages()[,"Package"]) { 
-                   library(x[i], character.only = T) 
-              } else {
-                    BiocManager::install(x[i]) 
-                
-                if (x[i] %in% installed.packages()[,"Package"]) { 
-                  library(x[i], character.only = T) 
-                } else {
-                  install.package(x[i]) 
-                }
-              
-              }
-          }
-}
-
-pack.list <- c("dplyr","tidyverse", "edgeR","lemon","ggvenn","ComplexHeatmap","viridis", "ggpubr", "gridExtra")
-
-CheckPackages(x=pack.list)
+library(dplyr)
+library(tidyverse)
+library(edgeR)
+library(lemon)
+library(ggvenn)
+library(ComplexHeatmap)
+library(viridis)
+library(ggpubr)
+library(gridExtra)
 
 setwd("./Cranberry_transcriptomics/") #Set working directory
 
