@@ -7,4 +7,6 @@ cd $PBS_O_WORKDIR
 
 module load ncbi-blast+/2.6.0
 
+#To get reciprocal best hits with blast, I need an index for both cranberry and uniprot database protein sequences.
 makeblastdb -in macrocarpon.proteins.fasta -dbtype prot
+makeblastdb -in uniprot.fasta -dbtype prot
