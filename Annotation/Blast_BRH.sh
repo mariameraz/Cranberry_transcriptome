@@ -14,4 +14,4 @@ blastp -query ../macrocarpon.proteins.fasta\
  -max_target_seqs 1 -evalue 1e-5 -out BRH.tab #BRH: "Best reciprocal (bidirectional) hit
  
  #Get ids
- grep 'sp|' BRH.tab | cut -f 1,2 > BRH.txt
+ grep 'sp|' BRH.tab | cut -f 1,2 > ids.txt
